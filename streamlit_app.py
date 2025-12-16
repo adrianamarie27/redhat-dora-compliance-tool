@@ -1233,22 +1233,32 @@ def check_redhat_access():
     except:
         pass
     
-    # METHOD 2: Check IP address (Red Hat network/VPN)
-    client_ip = get_client_ip()
-    ip_check_result = is_redhat_ip(client_ip)
+    # METHOD 2: Check IP address (Red Hat network/VPN) - Only if VPN is required
+    # Check if VPN requirement is enabled first
+    vpn_required_check = False
+    try:
+        if 'require_vpn' in st.secrets and st.secrets['require_vpn']:
+            vpn_required_check = True
+    except:
+        pass
     
-    # If IP check is configured and passes, allow access
-    if ip_check_result is True:
-        return True
-    
-    # If IP check is configured and fails, deny access
-    if ip_check_result is False:
-        st.title("🔒 Access Restricted")
-        st.error("❌ **Access Denied** - This application is only accessible from Red Hat network or VPN.")
-        st.info(f"**Your IP:** {client_ip or 'Unable to detect'}\n\n**Required:** Connection from Red Hat internal network or VPN")
-        st.markdown("---")
-        st.caption("**Solution:** Please connect to Red Hat VPN and try again.")
-        st.stop()
+    # Only check IP if VPN is required
+    if vpn_required_check:
+        client_ip = get_client_ip()
+        ip_check_result = is_redhat_ip(client_ip)
+        
+        # If IP check is configured and passes, allow access
+        if ip_check_result is True:
+            return True
+        
+        # If IP check is configured and fails, deny access
+        if ip_check_result is False:
+            st.title("🔒 Access Restricted")
+            st.error("❌ **Access Denied** - This application is only accessible from Red Hat network or VPN.")
+            st.info(f"**Your IP:** {client_ip or 'Unable to detect'}\n\n**Required:** Connection from Red Hat internal network or VPN")
+            st.markdown("---")
+            st.caption("**Solution:** Please connect to Red Hat VPN and try again.")
+            st.stop()
     
     # METHOD 3: OAuth/SSO (if configured)
     try:
