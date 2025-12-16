@@ -1,20 +1,20 @@
-DORA Requirements:
+DORA Requirements for ICT Service Providers:
 Pillar 1: ICT Risk Management
-Requirement: Documented and regularly reviewed ICT Risk Management Framework (RMF).
-Requirement: Identification of all critical ICT assets, functions, and dependencies.
-Requirement: Policy must define roles and responsibilities for the management body's oversight.
+Requirement: Documented and regularly reviewed ICT Risk Management Framework (RMF) that addresses risks specific to providing critical ICT services to financial entities.
+Requirement: Identification of all critical ICT assets, functions, and dependencies that support services provided to financial entities.
+Requirement: Policy must define roles and responsibilities for the management body's oversight of ICT risk management for financial entity services.
 Pillar 2: ICT Incident Management
-Requirement: Defined criteria for classifying 'major' ICT incidents.
-Requirement: Clear processes and timelines for internal and external reporting to authorities.
-Requirement: Procedures for performing Root Cause Analysis after incident resolution.
+Requirement: Defined criteria for classifying 'major' ICT incidents that impact services provided to financial entities.
+Requirement: Clear processes and timelines for internal reporting and notification to affected financial entities and relevant authorities.
+Requirement: Procedures for performing Root Cause Analysis after incident resolution, with focus on service impact to financial entities.
 Pillar 3: Digital Operational Resilience Testing
-Requirement: Establishment of a comprehensive testing program (e.g., vulnerability scans, penetration tests).
-Requirement: Management and implementation of Threat-Led Penetration Testing (TLPT) for critical functions.
-Requirement: Documentation and swift remediation of identified weaknesses.
+Requirement: Establishment of a comprehensive testing program (e.g., vulnerability scans, penetration tests) for systems supporting financial entity services.
+Requirement: Management and implementation of Threat-Led Penetration Testing (TLPT) for critical functions that support financial entities.
+Requirement: Documentation and swift remediation of identified weaknesses that could impact financial entity services.
 Pillar 4: Managing ICT Third-Party Risk
-Requirement: A register of all contractual arrangements concerning critical/important functions (CIFs).
-Requirement: Requirement for documented exit strategies for critical ICT service providers.
-Requirement: Contractual inclusion of full audit and inspection rights.
+Requirement: A register of all contractual arrangements concerning critical/important functions (CIFs) that support services to financial entities.
+Requirement: Requirement for documented exit strategies for critical ICT service providers that support financial entity services, ensuring continuity.
+Requirement: Contractual inclusion of full audit and inspection rights for financial entities and their regulators regarding services provided.
 Pillar 5: Information Sharing
-Requirement: Defined mechanisms for sharing cyber threat information and intelligence (TTPs, IoCs).
-Requirement: Measures to protect the confidentiality and security of shared information.
+Requirement: Defined mechanisms for sharing cyber threat information and intelligence (TTPs, IoCs) relevant to financial sector services.
+Requirement: Measures to protect the confidentiality and security of shared information, particularly regarding financial entity data and operations.
