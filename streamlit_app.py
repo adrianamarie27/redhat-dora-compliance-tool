@@ -203,7 +203,14 @@ def load_dora_requirements():
                     content = response.text
                     source = "online"
                     break
-            except Exception:
+                else:
+                    # Log the error for debugging
+                    if 'requirements_fetch_error' not in st.session_state:
+                        st.session_state.requirements_fetch_error = f"HTTP {response.status_code} for {url}"
+            except Exception as e:
+                # Log the error for debugging
+                if 'requirements_fetch_error' not in st.session_state:
+                    st.session_state.requirements_fetch_error = str(e)
                 continue
         
         # Fallback to local files if online fetch fails
@@ -250,8 +257,15 @@ def load_dora_requirements():
             if source == "online":
                 st.success("✅ Loaded DORA requirements from online source (always up-to-date)")
             elif source == "local":
-                st.info("ℹ️ Loaded DORA requirements from local file")
+                error_info = ""
+                if 'requirements_fetch_error' in st.session_state:
+                    error_info = f" Error: {st.session_state.requirements_fetch_error}"
+                st.warning(f"⚠️ Loaded from local file (online failed{error_info}). App works but won't auto-update.")
             st.session_state.requirements_source_shown = True
+        
+        # Also store source for debugging
+        if 'requirements_source' not in st.session_state:
+            st.session_state.requirements_source = source
         
         return pillars_requirements
     except Exception as e:
@@ -1442,3 +1456,4 @@ def display_results(results):
 
 if __name__ == "__main__":
     main()
+
