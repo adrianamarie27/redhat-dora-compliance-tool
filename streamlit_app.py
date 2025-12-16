@@ -1107,7 +1107,10 @@ def get_download_button_for_file(file_content, file_name, button_label="📥 Dow
 
 # Main UI
 def check_redhat_access():
-    """Check if user is a Red Hat employee based on email domain."""
+    """
+    Verify user is a Red Hat employee using secure authentication.
+    Requires both Red Hat email domain AND a shared access code/password.
+    """
     import os
     
     # Red Hat email domains
@@ -1131,63 +1134,92 @@ def check_redhat_access():
     if not restrict_access:
         return True
     
-    # Check if user email is set (from Streamlit Cloud or session)
-    user_email = None
-    
-    # Try to get email from Streamlit Cloud user info
+    # Get Red Hat access code from secrets (distributed to Red Hat employees)
+    redhat_access_code = None
     try:
-        if hasattr(st, 'user') and st.user:
-            user_email = st.user.get('email', '')
+        if 'redhat_access_code' in st.secrets:
+            redhat_access_code = st.secrets['redhat_access_code']
     except:
         pass
     
-    # If no email from Streamlit, check session state
-    if not user_email:
-        if 'user_email' in st.session_state:
-            user_email = st.session_state['user_email']
+    # Fallback to environment variable
+    if not redhat_access_code:
+        redhat_access_code = os.getenv('REDHAT_ACCESS_CODE', '')
     
-    # If we have an email, check if it's Red Hat
-    if user_email:
-        if any(domain in user_email.lower() for domain in REDHAT_DOMAINS):
-            return True
-        else:
-            st.title("🔒 Access Restricted")
-            st.error("❌ **Access Denied** - This application is restricted to Red Hat employees only.")
-            st.info(f"**Your email:** {user_email}\n\n**Required:** Email must be from Red Hat domain (@redhat.com)")
-            st.markdown("---")
-            st.caption("If you are a Red Hat employee, please contact the administrator for access.")
-            st.stop()
+    # If no access code is configured, require password instead
+    if not redhat_access_code:
+        # Use app password as fallback
+        try:
+            if 'app_password' in st.secrets:
+                redhat_access_code = st.secrets['app_password']
+        except:
+            pass
     
-    # If no email available, prompt for email verification
-    if 'email_verified' not in st.session_state:
-        st.session_state.email_verified = False
+    # Check if user is already authenticated
+    if 'redhat_authenticated' not in st.session_state:
+        st.session_state.redhat_authenticated = False
     
-    if not st.session_state.email_verified:
+    if not st.session_state.redhat_authenticated:
         st.title("🔒 Red Hat Employee Access Required")
-        st.markdown("### Email Verification")
-        st.info("**This application is restricted to Red Hat employees only.**")
+        st.markdown("### Secure Authentication")
+        st.warning("**This application is restricted to Red Hat employees only.**")
+        st.info("**Access requires:**\n1. Red Hat email address\n2. Red Hat employee access code")
         
-        email_input = st.text_input(
-            "Enter your Red Hat email address:",
-            placeholder="your.name@redhat.com",
-            help="Must be a valid Red Hat email address"
-        )
+        col1, col2 = st.columns(2)
         
-        if st.button("✅ Verify Email", type="primary"):
+        with col1:
+            email_input = st.text_input(
+                "Red Hat Email Address:",
+                placeholder="your.name@redhat.com",
+                help="Your Red Hat corporate email address"
+            )
+        
+        with col2:
+            if redhat_access_code:
+                code_input = st.text_input(
+                    "Access Code:",
+                    type="password",
+                    placeholder="Enter access code",
+                    help="Red Hat employee access code (contact administrator if needed)"
+                )
+            else:
+                st.info("⚠️ Access code not configured. Contact administrator.")
+                code_input = ""
+        
+        if st.button("✅ Authenticate", type="primary", use_container_width=True):
+            # Validate email domain
+            email_valid = False
             if email_input:
                 email_lower = email_input.lower().strip()
                 if any(domain in email_lower for domain in REDHAT_DOMAINS):
-                    st.session_state.email_verified = True
-                    st.session_state.user_email = email_input
-                    st.success("✅ Email verified! Access granted.")
-                    st.rerun()
+                    email_valid = True
                 else:
-                    st.error(f"❌ Invalid email domain. Must be a Red Hat email address (e.g., @redhat.com)")
-            else:
-                st.warning("⚠️ Please enter your email address")
+                    st.error("❌ Invalid email domain. Must be a Red Hat email address (@redhat.com)")
+            
+            # Validate access code
+            code_valid = False
+            if redhat_access_code and code_input:
+                if code_input == redhat_access_code:
+                    code_valid = True
+                else:
+                    st.error("❌ Invalid access code. Please contact your administrator.")
+            elif not redhat_access_code:
+                st.error("❌ Access code not configured. Please contact administrator.")
+            
+            # Grant access if both valid
+            if email_valid and code_valid:
+                st.session_state.redhat_authenticated = True
+                st.session_state.user_email = email_input
+                st.success("✅ Authentication successful! Access granted.")
+                st.rerun()
+            elif not email_input:
+                st.warning("⚠️ Please enter your Red Hat email address")
+            elif not code_input:
+                st.warning("⚠️ Please enter the access code")
         
         st.markdown("---")
-        st.caption("**Access Policy:** Only Red Hat employees with valid @redhat.com email addresses can access this application.")
+        st.caption("**Security:** This application requires both a valid Red Hat email address and an employee access code for security.")
+        st.caption("**Need access?** Contact your administrator for the access code.")
         st.stop()
     
     return True
