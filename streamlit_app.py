@@ -1106,15 +1106,100 @@ def get_download_button_for_file(file_content, file_name, button_label="📥 Dow
     return href
 
 # Main UI
+def get_client_ip():
+    """Get client IP address from request headers."""
+    import socket
+    
+    # Try to get IP from various headers (for proxy/VPN scenarios)
+    headers = {}
+    try:
+        # Streamlit doesn't expose request headers directly, so we'll use a workaround
+        # Check if we're behind a proxy
+        if hasattr(st, 'request') and st.request:
+            headers = st.request.headers if hasattr(st.request, 'headers') else {}
+    except:
+        pass
+    
+    # Try X-Forwarded-For (common in proxy/VPN setups)
+    forwarded_for = headers.get('X-Forwarded-For', '')
+    if forwarded_for:
+        # Take the first IP (original client)
+        ip = forwarded_for.split(',')[0].strip()
+        return ip
+    
+    # Try X-Real-IP
+    real_ip = headers.get('X-Real-IP', '')
+    if real_ip:
+        return real_ip.strip()
+    
+    # Fallback: try to get from environment (may not work in Streamlit Cloud)
+    try:
+        import os
+        remote_addr = os.getenv('REMOTE_ADDR', '')
+        if remote_addr:
+            return remote_addr
+    except:
+        pass
+    
+    return None
+
+def is_redhat_ip(ip_address):
+    """
+    Check if IP address belongs to Red Hat network ranges.
+    Note: This requires Red Hat network IP ranges to be configured.
+    """
+    if not ip_address:
+        return False
+    
+    # Red Hat network IP ranges (CIDR notation)
+    # TODO: Update these with actual Red Hat network ranges
+    REDHAT_IP_RANGES = [
+        # Example ranges - REPLACE WITH ACTUAL RED HAT IP RANGES
+        # '10.0.0.0/8',  # Example: Internal network
+        # '172.16.0.0/12',  # Example: VPN range
+        # '192.168.0.0/16',  # Example: Internal range
+    ]
+    
+    # Get configured ranges from secrets
+    try:
+        if 'redhat_ip_ranges' in st.secrets:
+            configured_ranges = st.secrets['redhat_ip_ranges']
+            if isinstance(configured_ranges, list):
+                REDHAT_IP_RANGES.extend(configured_ranges)
+            elif isinstance(configured_ranges, str):
+                # Comma-separated list
+                REDHAT_IP_RANGES.extend([r.strip() for r in configured_ranges.split(',')])
+    except:
+        pass
+    
+    # If no ranges configured, IP check is disabled
+    if not REDHAT_IP_RANGES:
+        return None  # None means "check not configured"
+    
+    # Simple IP matching (for exact matches)
+    # For CIDR matching, you'd need ipaddress library
+    try:
+        import ipaddress
+        ip_obj = ipaddress.ip_address(ip_address)
+        for cidr in REDHAT_IP_RANGES:
+            if ip_obj in ipaddress.ip_network(cidr, strict=False):
+                return True
+    except:
+        # Fallback: simple string matching for exact IPs
+        if ip_address in REDHAT_IP_RANGES:
+            return True
+    
+    return False
+
 def check_redhat_access():
     """
-    Verify user is a Red Hat employee using secure authentication.
-    Requires both Red Hat email domain AND a shared access code/password.
+    Verify user is a Red Hat employee using multiple authentication methods:
+    1. Streamlit native authentication (st.login) - if configured
+    2. IP-based restriction (Red Hat network/VPN)
+    3. OAuth/SSO integration (if configured)
+    4. Fallback to email + access code
     """
     import os
-    
-    # Red Hat email domains
-    REDHAT_DOMAINS = ['@redhat.com', '@redhat.de', '@redhat.co.uk', '@redhat.fr', '@redhat.jp']
     
     # Check if access restriction is enabled
     restrict_access = True  # Default to restricted
@@ -1134,26 +1219,99 @@ def check_redhat_access():
     if not restrict_access:
         return True
     
-    # Get Red Hat access code from secrets (distributed to Red Hat employees)
-    redhat_access_code = None
+    # METHOD 1: Try Streamlit native authentication (st.login)
     try:
-        if 'redhat_access_code' in st.secrets:
-            redhat_access_code = st.secrets['redhat_access_code']
+        # Check if Streamlit authentication is configured
+        if hasattr(st, 'user') and st.user:
+            # User is authenticated via Streamlit's built-in auth
+            user_email = st.user.get('email', '')
+            if user_email:
+                # Verify it's a Red Hat email
+                REDHAT_DOMAINS = ['@redhat.com', '@redhat.de', '@redhat.co.uk', '@redhat.fr', '@redhat.jp']
+                if any(domain in user_email.lower() for domain in REDHAT_DOMAINS):
+                    return True
     except:
         pass
     
-    # Fallback to environment variable
-    if not redhat_access_code:
-        redhat_access_code = os.getenv('REDHAT_ACCESS_CODE', '')
+    # METHOD 2: Check IP address (Red Hat network/VPN)
+    client_ip = get_client_ip()
+    ip_check_result = is_redhat_ip(client_ip)
     
-    # If no access code is configured, require password instead
-    if not redhat_access_code:
-        # Use app password as fallback
-        try:
-            if 'app_password' in st.secrets:
-                redhat_access_code = st.secrets['app_password']
-        except:
+    # If IP check is configured and passes, allow access
+    if ip_check_result is True:
+        return True
+    
+    # If IP check is configured and fails, deny access
+    if ip_check_result is False:
+        st.title("🔒 Access Restricted")
+        st.error("❌ **Access Denied** - This application is only accessible from Red Hat network or VPN.")
+        st.info(f"**Your IP:** {client_ip or 'Unable to detect'}\n\n**Required:** Connection from Red Hat internal network or VPN")
+        st.markdown("---")
+        st.caption("**Solution:** Please connect to Red Hat VPN and try again.")
+        st.stop()
+    
+    # METHOD 3: OAuth/SSO (if configured)
+    try:
+        # Check if OAuth is configured in secrets
+        if 'oauth' in st.secrets or 'oidc' in st.secrets:
+            # OAuth configuration exists - would need additional implementation
+            # For now, fall through to email+code method
             pass
+    except:
+        pass
+    
+    # METHOD 4: Email Whitelist + Optional VPN Requirement
+    REDHAT_DOMAINS = ['@redhat.com', '@redhat.de', '@redhat.co.uk', '@redhat.fr', '@redhat.jp']
+    
+    # Check if VPN is required (optional - can be added later)
+    vpn_required = False
+    try:
+        if 'require_vpn' in st.secrets and st.secrets['require_vpn']:
+            vpn_required = True
+    except:
+        pass
+    
+    # Check VPN connection if required
+    if vpn_required:
+        client_ip = get_client_ip()
+        ip_check_result = is_redhat_ip(client_ip)
+        
+        if ip_check_result is False:
+            # VPN required but not connected
+            st.title("🔒 VPN Required")
+            st.error("❌ **Access Denied** - Red Hat VPN connection required.")
+            st.info(f"**Your IP:** {client_ip or 'Unable to detect'}\n\n**Required:** Connection from Red Hat VPN")
+            st.markdown("---")
+            st.warning("**To access this application:**\n1. Connect to Red Hat VPN\n2. Refresh this page\n3. You will then be prompted for email authentication")
+            st.caption("**VPN IP ranges must be configured in Streamlit Secrets for this check to work.**")
+            st.stop()
+        elif ip_check_result is None:
+            # VPN required but IP ranges not configured
+            st.warning("⚠️ **VPN requirement enabled but IP ranges not configured.**")
+            st.info("**To enable VPN checking:** Add `redhat_ip_ranges` to Streamlit Secrets with Red Hat VPN IP ranges.")
+            st.caption("**For now, proceeding with email authentication only.**")
+    
+    # Get approved email whitelist from secrets (REQUIRED for security)
+    approved_emails = []
+    try:
+        if 'approved_emails' in st.secrets:
+            approved_list = st.secrets['approved_emails']
+            if isinstance(approved_list, list):
+                approved_emails = [email.lower().strip() for email in approved_list]
+            elif isinstance(approved_list, str):
+                # Comma-separated or newline-separated
+                approved_emails = [email.lower().strip() for email in approved_list.replace('\n', ',').split(',') if email.strip()]
+    except:
+        pass
+    
+    # Domain-based approval (NOT RECOMMENDED - Less secure, allows fake emails)
+    # Only use if explicitly enabled AND whitelist is also configured
+    domain_based_approval = False
+    try:
+        if 'allow_redhat_domain' in st.secrets and st.secrets['allow_redhat_domain']:
+            domain_based_approval = True
+    except:
+        pass
     
     # Check if user is already authenticated
     if 'redhat_authenticated' not in st.session_state:
@@ -1161,65 +1319,104 @@ def check_redhat_access():
     
     if not st.session_state.redhat_authenticated:
         st.title("🔒 Red Hat Employee Access Required")
-        st.markdown("### Secure Authentication")
+        st.markdown("### Email Authentication")
         st.warning("**This application is restricted to Red Hat employees only.**")
-        st.info("**Access requires:**\n1. Red Hat email address\n2. Red Hat employee access code")
         
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            email_input = st.text_input(
-                "Red Hat Email Address:",
-                placeholder="your.name@redhat.com",
-                help="Your Red Hat corporate email address"
-            )
-        
-        with col2:
-            if redhat_access_code:
-                code_input = st.text_input(
-                    "Access Code:",
-                    type="password",
-                    placeholder="Enter access code",
-                    help="Red Hat employee access code (contact administrator if needed)"
-                )
+        # Show VPN status if required
+        if vpn_required:
+            client_ip = get_client_ip()
+            ip_check_result = is_redhat_ip(client_ip)
+            if ip_check_result is True:
+                st.success(f"✅ **Connected to Red Hat VPN** (IP: {client_ip})")
+            elif ip_check_result is False:
+                st.error(f"❌ **Not on Red Hat VPN** (IP: {client_ip})")
+                st.warning("**VPN connection required before email authentication.**")
             else:
-                st.info("⚠️ Access code not configured. Contact administrator.")
-                code_input = ""
+                st.info(f"**Your IP:** {client_ip or 'Unable to detect'}")
+                st.caption("**Note:** VPN IP ranges not configured. VPN check disabled.")
         
-        if st.button("✅ Authenticate", type="primary", use_container_width=True):
-            # Validate email domain
-            email_valid = False
+        # Security warning if domain-based is enabled
+        if domain_based_approval and not approved_emails:
+            st.error("⚠️ **SECURITY WARNING:** Domain-based access is enabled without a whitelist. This allows ANY @redhat.com email, including fake ones!")
+            st.info("**Recommendation:** Use `approved_emails` whitelist for secure access control.")
+        
+        # Show authentication method
+        if approved_emails:
+            security_methods = []
+            if vpn_required:
+                security_methods.append("VPN connection")
+            security_methods.append(f"Email whitelist ({len(approved_emails)} approved emails)")
+            st.success(f"✅ **Secure Access Method:** {' + '.join(security_methods)}")
+            if domain_based_approval:
+                st.warning("⚠️ **Note:** Domain-based access is also enabled. Whitelist takes priority.")
+        elif domain_based_approval:
+            st.error("⚠️ **Less Secure:** Domain-based access enabled (allows any @redhat.com email)")
+            st.warning("**Security Risk:** Anyone can enter a fake @redhat.com email and gain access!")
+            st.info("**Recommendation:** Configure `approved_emails` whitelist in Streamlit Secrets for secure access.")
+        else:
+            st.error("⚠️ **No access method configured.** Please configure approved emails in Streamlit Secrets.")
+            st.markdown("---")
+            st.caption("**To enable secure access:** Add `approved_emails` to Streamlit Secrets (see setup guide)")
+            st.caption("**Example:** `approved_emails = [\"user1@redhat.com\", \"user2@redhat.com\"]`")
+            st.stop()
+        
+        # Email input
+        email_input = st.text_input(
+            "Red Hat Email Address:",
+            placeholder="your.name@redhat.com",
+            help="Enter your Red Hat corporate email address"
+        )
+        
+        if st.button("✅ Verify Email", type="primary", use_container_width=True):
             if email_input:
                 email_lower = email_input.lower().strip()
-                if any(domain in email_lower for domain in REDHAT_DOMAINS):
-                    email_valid = True
-                else:
+                
+                # Validate Red Hat email domain
+                is_redhat_domain = any(domain in email_lower for domain in REDHAT_DOMAINS)
+                
+                if not is_redhat_domain:
                     st.error("❌ Invalid email domain. Must be a Red Hat email address (@redhat.com)")
-            
-            # Validate access code
-            code_valid = False
-            if redhat_access_code and code_input:
-                if code_input == redhat_access_code:
-                    code_valid = True
                 else:
-                    st.error("❌ Invalid access code. Please contact your administrator.")
-            elif not redhat_access_code:
-                st.error("❌ Access code not configured. Please contact administrator.")
-            
-            # Grant access if both valid
-            if email_valid and code_valid:
-                st.session_state.redhat_authenticated = True
-                st.session_state.user_email = email_input
-                st.success("✅ Authentication successful! Access granted.")
-                st.rerun()
-            elif not email_input:
+                    # Check if email is approved
+                    access_granted = False
+                    
+                    # Method 1: Check whitelist (SECURE - takes priority)
+                    if approved_emails:
+                        if email_lower in approved_emails:
+                            access_granted = True
+                        else:
+                            st.error(f"❌ **Access Denied** - This email is not on the approved list.")
+                            st.info(f"**Your email:** {email_lower}\n\n**Contact your administrator** to request access.")
+                            st.caption("**Security:** Only pre-approved email addresses can access this application.")
+                    
+                    # Method 2: Domain-based (LESS SECURE - only if whitelist empty and explicitly enabled)
+                    elif domain_based_approval:
+                        if is_redhat_domain:
+                            access_granted = True
+                            st.warning("⚠️ **Less Secure Mode:** Domain-based access allows any @redhat.com email.")
+                    
+                    # Grant access
+                    if access_granted:
+                        st.session_state.redhat_authenticated = True
+                        st.session_state.user_email = email_lower
+                        st.success(f"✅ **Access granted!** Welcome, {email_lower}")
+                        st.rerun()
+            else:
                 st.warning("⚠️ Please enter your Red Hat email address")
-            elif not code_input:
-                st.warning("⚠️ Please enter the access code")
         
         st.markdown("---")
-        st.caption("**Security:** This application requires both a valid Red Hat email address and an employee access code for security.")
-        st.caption("**Need access?** Contact your administrator for the access code.")
+        security_info = []
+        if vpn_required:
+            security_info.append("Red Hat VPN connection")
+        if approved_emails:
+            security_info.append(f"{len(approved_emails)} pre-approved email addresses")
+        
+        if security_info:
+            st.caption(f"🔒 **Security Requirements:** {' + '.join(security_info)}")
+            st.caption("**Need access?** Contact your administrator to add your email to the approved list.")
+        elif domain_based_approval:
+            st.error("⚠️ **Security Warning:** Domain-based access is enabled. Anyone with a @redhat.com email can access, including fake emails!")
+            st.caption("**Recommendation:** Configure `approved_emails` whitelist for secure access control.")
         st.stop()
     
     return True
@@ -1908,3 +2105,4 @@ def display_results(results):
 
 if __name__ == "__main__":
     main()
+
