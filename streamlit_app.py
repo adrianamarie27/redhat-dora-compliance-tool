@@ -41,7 +41,7 @@ except ImportError:
 
 # Page configuration
 st.set_page_config(
-    page_title="DORA Compliance Analyzer - Enterprise Edition",
+    page_title="DORA Compliance Analyzer - ICT Service Provider Edition",
     page_icon="📋",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -182,21 +182,44 @@ def create_http_session_with_proxy():
     
     return session
 
+@st.cache_data(ttl=3600)  # Cache for 1 hour
 def load_dora_requirements():
-    """Load and parse DORA requirements from the requirements file."""
+    """Load and parse DORA requirements from online source or local file."""
     try:
-        file_paths = ['dora_requirements.txt', 'dora_requirements.txt.txt']
+        # Try to fetch from online source first (GitHub raw URL)
+        online_urls = [
+            "https://raw.githubusercontent.com/adrianamarie27/redhat-dora-compliance-tool/main/dora_requirements.txt.txt",
+            "https://raw.githubusercontent.com/adrianamarie27/redhat-dora-compliance-tool/main/dora_requirements.txt"
+        ]
+        
         content = None
-        for file_path in file_paths:
+        source = None
+        
+        # Try online sources first
+        for url in online_urls:
             try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                break
-            except FileNotFoundError:
+                response = requests.get(url, timeout=10)
+                if response.status_code == 200:
+                    content = response.text
+                    source = "online"
+                    break
+            except Exception:
                 continue
         
+        # Fallback to local files if online fetch fails
         if content is None:
-            st.error("Error: dora_requirements.txt file not found.")
+            file_paths = ['dora_requirements.txt', 'dora_requirements.txt.txt']
+            for file_path in file_paths:
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    source = "local"
+                    break
+                except FileNotFoundError:
+                    continue
+        
+        if content is None:
+            st.error("Error: Unable to load DORA requirements from online source or local file.")
             return None
         
         lines = content.strip().split('\n')
@@ -221,6 +244,14 @@ def load_dora_requirements():
                         "text": req_text,
                         "keywords": keywords
                     })
+        
+        # Log source for debugging (only show once per session)
+        if 'requirements_source_shown' not in st.session_state:
+            if source == "online":
+                st.success("✅ Loaded DORA requirements from online source (always up-to-date)")
+            elif source == "local":
+                st.info("ℹ️ Loaded DORA requirements from local file")
+            st.session_state.requirements_source_shown = True
         
         return pillars_requirements
     except Exception as e:
@@ -929,8 +960,9 @@ def main():
     # Check password first
     check_password()
     
-    st.title("📋 DORA Compliance Analyzer - Enterprise Edition")
-    st.markdown("Comprehensive tool for verifying documentation adherence to DORA pillar requirements")
+    st.title("📋 DORA Compliance Analyzer - ICT Service Provider Edition")
+    st.markdown("**Comprehensive tool for ICT service providers to verify documentation adherence to DORA pillar requirements**")
+    st.info("ℹ️ This tool assesses DORA compliance from an **ICT Service Provider** perspective, focusing on obligations relevant to providers of critical ICT services to financial entities.")
     
     # Sidebar for configuration
     with st.sidebar:
@@ -1410,4 +1442,3 @@ def display_results(results):
 
 if __name__ == "__main__":
     main()
-
