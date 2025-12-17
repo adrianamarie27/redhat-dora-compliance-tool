@@ -1,4 +1,189 @@
 import streamlit as st
+
+# ----- Dora Pulse Access Gate -----
+
+PASSWORD = "innovation2025"
+
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+
+if not st.session_state.authenticated:
+    st.title("Dora Pulse")
+    password = st.text_input("Enter access password", type="password")
+    if password == PASSWORD:
+        st.session_state.authenticated = True
+        st.success("Access granted")
+    else:
+        if password:
+            st.error("Incorrect password")
+        st.stop()
+# -----------------------------
+# Dora Pulse Secure Layer
+# -----------------------------
+
+import streamlit as st
+import re
+
+# --- 1️⃣ PASSWORD PROTECTION ---
+PASSWORD = st.secrets.get("DORA_PULSE_PASSWORD", "innovation2025!")  # replace later
+
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+
+if not st.session_state.authenticated:
+    password_input = st.text_input("Enter password to access Dora Pulse", type="password")
+    if password_input == PASSWORD:
+        st.session_state.authenticated = True
+        st.success("Access granted ✅")
+    else:
+        if password_input:
+            st.error("Access denied ❌")
+        st.stop()  # stops app for anyone without password
+
+# --- 2️⃣ SANITIZE USER INPUTS ---
+def sanitize_input(user_input: str) -> str:
+    return re.sub(r"[^a-zA-Z0-9 \-_]", "", user_input)
+
+# Example usage:
+user_filter = st.text_input("Filter domain:")
+safe_filter = sanitize_input(user_filter)
+
+# --- 3️⃣ SAFE GITHUB TOKEN ---
+GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", None)
+if GITHUB_TOKEN is None:
+    st.warning("GitHub token not configured. Features needing GitHub won't work.")
+
+# --- 4️⃣ DASHBOARD WRAPPER ---
+def run_dashboard(filter_value):
+    st.write("Running Dora Pulse Dashboard with filter:", filter_value)
+    # --- Replace below with your existing Dora Pulse code ---
+    # results = health_scoring_module.analyze(findings, filter=filter_value)
+    # st.write(results)
+
+run_dashboard(safe_filter)
+# -----------------------------
+# Dora Pulse Streamlit Security Layer (Full Lockdown)
+# -----------------------------
+
+import streamlit as st
+import re
+
+# -----------------------------
+# 1️⃣ PASSWORD PROTECTION
+# -----------------------------
+PASSWORD = st.secrets.get("DORA_PULSE_PASSWORD", "ChangeMe123!")  # Replace with strong password
+
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+
+if not st.session_state.authenticated:
+    password_input = st.text_input(
+        "Enter password to access Dora Pulse Dashboard", type="password"
+    )
+    if password_input == PASSWORD:
+        st.session_state.authenticated = True
+        st.success("Access granted ✅")
+    else:
+        if password_input:
+            st.error("Access denied ❌")
+        st.stop()  # Stop the app for unauthorized users
+
+# -----------------------------
+# 2️⃣ SANITIZE USER INPUTS (FULL LOCKDOWN)
+# -----------------------------
+def sanitize_input(user_input: str) -> str:
+    """
+    Remove any characters that are not letters, numbers, spaces, hyphens, or underscores.
+    Prevents code injection or unsafe input execution.
+    """
+    return re.sub(r"[^a-zA-Z0-9 \-_]", "", user_input)
+
+# Example usage for a filter input
+user_filter = st.text_input("Filter domain:")
+safe_filter = sanitize_input(user_filter)
+
+# -----------------------------
+# 3️⃣ SAFE GITHUB TOKEN USAGE
+# -----------------------------
+GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", None)
+if GITHUB_TOKEN is None:
+    st.warning("GitHub token not configured. Features requiring GitHub will not work.")
+
+# -----------------------------
+# 4️⃣ DASHBOARD WRAPPER
+# -----------------------------
+# Placeholder for your existing Dora Pulse dashboard code
+def run_dashboard(filter_value):
+    st.write("Running Dora Pulse Dashboard with filter:", filter_value)
+    # --- REPLACE BELOW WITH YOUR EXISTING DORA PULSE FUNCTIONS ---
+    # Example:
+    # results = health_scoring_module.analyze(findings, filter=filter_value)
+    # st.write(results)
+
+# Run dashboard using sanitized input
+run_dashboard(safe_filter)
+# -----------------------------
+# Dora Pulse Streamlit Security Layer (Full Lockdown)
+# -----------------------------
+
+import streamlit as st
+import re
+
+# -----------------------------
+# 1️⃣ PASSWORD PROTECTION
+# -----------------------------
+PASSWORD = st.secrets.get("DORA_PULSE_PASSWORD", "ChangeMe123!")  # Replace with strong password
+
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+
+if not st.session_state.authenticated:
+    password_input = st.text_input(
+        "Enter password to access Dora Pulse Dashboard", type="password"
+    )
+    if password_input == PASSWORD:
+        st.session_state.authenticated = True
+        st.success("Access granted ✅")
+    else:
+        if password_input:
+            st.error("Access denied ❌")
+        st.stop()  # Stop the app for unauthorized users
+
+# -----------------------------
+# 2️⃣ SANITIZE USER INPUTS (FULL LOCKDOWN)
+# -----------------------------
+def sanitize_input(user_input: str) -> str:
+    """
+    Remove any characters that are not letters, numbers, spaces, hyphens, or underscores.
+    Prevents code injection or unsafe input execution.
+    """
+    return re.sub(r"[^a-zA-Z0-9 \-_]", "", user_input)
+
+# Example usage for a filter input
+user_filter = st.text_input("Filter domain:")
+safe_filter = sanitize_input(user_filter)
+
+# -----------------------------
+# 3️⃣ SAFE GITHUB TOKEN USAGE
+# -----------------------------
+GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", None)
+if GITHUB_TOKEN is None:
+    st.warning("GitHub token not configured. Features requiring GitHub will not work.")
+
+# -----------------------------
+# 4️⃣ DASHBOARD WRAPPER
+# -----------------------------
+# Placeholder for your existing Dora Pulse dashboard code
+def run_dashboard(filter_value):
+    st.write("Running Dora Pulse Dashboard with filter:", filter_value)
+    # --- REPLACE BELOW WITH YOUR EXISTING DORA PULSE FUNCTIONS ---
+    # Example:
+    # results = health_scoring_module.analyze(findings, filter=filter_value)
+    # st.write(results)
+
+# Run dashboard using sanitized input
+run_dashboard(safe_filter)
+import streamlit as st
 import pypdf
 from docx import Document
 import re
@@ -1306,7 +1491,7 @@ def check_redhat_access():
         
         # Show authentication method
         if approved_emails:
-            st.success(f"✅ **Secure Access Method:** Email whitelist ({len(approved_emails)} approved emails)")
+            st.success("✅ **Secure Access Method:** Email whitelist authentication")
             if domain_based_approval:
                 st.warning("⚠️ **Note:** Domain-based access is also enabled. Whitelist takes priority.")
         elif domain_based_approval:
@@ -1366,7 +1551,7 @@ def check_redhat_access():
         
         st.markdown("---")
         if approved_emails:
-            st.caption(f"🔒 **Security:** Only {len(approved_emails)} pre-approved email addresses can access this application.")
+            st.caption("🔒 **Security:** Only pre-approved email addresses can access this application.")
             st.caption("**Need access?** Contact your administrator to add your email to the approved list.")
         elif domain_based_approval:
             st.error("⚠️ **Security Warning:** Domain-based access is enabled. Anyone with a @redhat.com email can access, including fake emails!")
