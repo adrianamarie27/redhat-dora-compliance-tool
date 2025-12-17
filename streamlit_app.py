@@ -1484,21 +1484,13 @@ def check_redhat_access():
         st.markdown("### Email Authentication")
         st.warning("**This application is restricted to Red Hat employees only.**")
         
-        # Security warning if domain-based is enabled
+        # Security warning if domain-based is enabled (only show if misconfigured)
         if domain_based_approval and not approved_emails:
             st.error("⚠️ **SECURITY WARNING:** Domain-based access is enabled without a whitelist. This allows ANY @redhat.com email, including fake ones!")
             st.info("**Recommendation:** Use `approved_emails` whitelist for secure access control.")
         
-        # Show authentication method
-        if approved_emails:
-            st.success("✅ **Secure Access Method:** Email whitelist authentication")
-            if domain_based_approval:
-                st.warning("⚠️ **Note:** Domain-based access is also enabled. Whitelist takes priority.")
-        elif domain_based_approval:
-            st.error("⚠️ **Less Secure:** Domain-based access enabled (allows any @redhat.com email)")
-            st.warning("**Security Risk:** Anyone can enter a fake @redhat.com email and gain access!")
-            st.info("**Recommendation:** Configure `approved_emails` whitelist in Streamlit Secrets for secure access.")
-        else:
+        # Check if access method is configured (silent check - no banner)
+        if not approved_emails and not domain_based_approval:
             st.error("⚠️ **No access method configured.** Please configure approved emails in Streamlit Secrets.")
             st.markdown("---")
             st.caption("**To enable secure access:** Add `approved_emails` to Streamlit Secrets (see setup guide)")
@@ -1532,7 +1524,6 @@ def check_redhat_access():
                         else:
                             st.error(f"❌ **Access Denied** - This email is not on the approved list.")
                             st.info(f"**Your email:** {email_lower}\n\n**Contact your administrator** to request access.")
-                            st.caption("**Security:** Only pre-approved email addresses can access this application.")
                     
                     # Method 2: Domain-based (LESS SECURE - only if whitelist empty and explicitly enabled)
                     elif domain_based_approval:
@@ -1551,7 +1542,6 @@ def check_redhat_access():
         
         st.markdown("---")
         if approved_emails:
-            st.caption("🔒 **Security:** Only pre-approved email addresses can access this application.")
             st.caption("**Need access?** Contact your administrator to add your email to the approved list.")
         elif domain_based_approval:
             st.error("⚠️ **Security Warning:** Domain-based access is enabled. Anyone with a @redhat.com email can access, including fake emails!")
